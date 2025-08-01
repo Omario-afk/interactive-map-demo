@@ -3,7 +3,7 @@
 export class RouteService {
     constructor(apiKey = null) {
       // OpenRouteService - 2000 requests/day free
-      this.openRouteServiceKey = apiKey;
+      this.openRouteServiceKey = process.env.NEXT_PUBLIC_OPENROUTESERVICE_API_KEY;
       this.openRouteServiceUrl = 'https://api.openrouteservice.org/v2/directions/driving-car';
       
       // Backup: OSRM (completely free, no API key needed)
