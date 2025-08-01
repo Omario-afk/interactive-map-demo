@@ -1,36 +1,125 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Application de Carte Interactive France
 
-## Getting Started
+Une application Next.js qui affiche une carte interactive de la France avec des capacités de planification d'itinéraires entre les principales destinations françaises. Construite avec React Leaflet et l'API OpenRouteService.
 
-First, run the development server:
+## Fonctionnalités
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- 🗺️ Carte interactive utilisant React Leaflet avec des tuiles CartoDB Light
+- 🚗 Planification d'itinéraires entre les monuments et destinations françaises
+- 📍 Marqueurs personnalisés pour les points de départ et de destination
+- 🛣️ Calcul d'itinéraire en temps réel avec distance et durée
+- 🎲 Fonctionnalité de sélection d'itinéraire aléatoire
+- 📱 Design responsive pour mobile et desktop
+- 🇫🇷 Interface en langue française
+
+## Itinéraires Exemples
+
+L'application inclut des itinéraires prédéfinis entre les destinations françaises populaires :
+- Musée du Louvre à la Tour Eiffel (Paris)
+- Gare du Nord à l'Arc de Triomphe (Paris)
+- Notre-Dame au Sacré-Cœur (Paris)
+- Bellecour au Vieux Lyon (Lyon)
+- Vieux-Port à Notre-Dame de la Garde (Marseille)
+
+## Prérequis
+
+- Node.js 18+
+- npm, yarn, ou pnpm
+- Clé API OpenRouteService
+
+## Installation
+
+1. **Cloner le repository**
+   ```bash
+   git clone https://github.com/Omario-afk/interactive-map-demo.git
+   cd interactive-map-demo
+   ```
+
+2. **Installer les dépendances**
+   ```bash
+   npm install
+   # ou
+   yarn install
+   # ou
+   pnpm install
+   ```
+
+3. **Créer le fichier d'environnement**
+   Créez un fichier `.env.local` dans le répertoire racine :
+   ```bash
+   NEXT_PUBLIC_OPENROUTESERVICE_API_KEY=votre_clé_api_ici
+   ```
+
+4. **Obtenir une clé API OpenRouteService**
+   - Allez sur [OpenRouteService](https://openrouteservice.org/)
+   - Créez un compte gratuit
+   - Naviguez vers votre profil/dashboard
+   - Générez une nouvelle clé API
+   - Copiez la clé et collez-la dans votre fichier `.env.local`
+
+5. **Lancer le serveur de développement**
+   ```bash
+   npm run dev
+   # ou
+   yarn dev
+   # ou
+   pnpm dev
+   ```
+
+6. **Ouvrir votre navigateur**
+   Naviguez vers [http://localhost:3000](http://localhost:3000)
+
+## Technologies Utilisées
+
+- **Next.js 14** - Framework React
+- **React Leaflet** - Bibliothèque de composants cartographiques
+- **Leaflet** - Bibliothèque de cartographie open-source
+- **API OpenRouteService** - Service de planification d'itinéraires
+- **Tailwind CSS** - Framework de style
+- **Police Geist** - Typographie
+
+## Structure du Projet
+
+```
+src/
+├── app/
+│   ├── layout.js          # Layout racine
+│   ├── page.jsx           # Composant page principale
+│   └── globals.css        # Styles globaux
+├── components/
+│   └── MapComponent.jsx   # Composant carte interactive
+└── services/
+    └── RouteService.js    # Service API pour le calcul d'itinéraires
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Configuration de la Clé API
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+L'application nécessite une clé API OpenRouteService pour les calculs d'itinéraires. Voici comment l'obtenir :
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Visitez [OpenRouteService](https://openrouteservice.org/)
+2. Cliquez sur "Sign Up" et créez un compte gratuit
+3. Vérifiez votre adresse email
+4. Connectez-vous à votre dashboard
+5. Allez dans la section "API Keys"
+6. Générez une nouvelle clé API
+7. Copiez la clé et ajoutez-la à votre fichier `.env.local`
 
-## Learn More
+**Note** : La version gratuite a des limites de taux. Pour un usage en production, considérez une mise à niveau vers un plan payant.
 
-To learn more about Next.js, take a look at the following resources:
+## Développement
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Rechargement à chaud** : Les modifications sont reflétées immédiatement en développement
+- **SSR désactivé** : Les composants cartographiques sont chargés côté client pour éviter les problèmes SSR
+- **Imports dynamiques** : Les composants React Leaflet sont importés dynamiquement pour prévenir les erreurs d'hydratation
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Déploiement
 
-## Deploy on Vercel
+Cette application peut être déployée sur Vercel, Netlify, ou toute autre plateforme compatible Next.js. Assurez-vous de :
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. Définir la variable d'environnement `NEXT_PUBLIC_OPENROUTESERVICE_API_KEY` sur votre plateforme d'hébergement
+2. Construire l'application : `npm run build`
+3. Déployer en utilisant votre méthode préférée
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Licence
+
+Ce projet est open source et disponible sous la [Licence MIT](LICENSE).
