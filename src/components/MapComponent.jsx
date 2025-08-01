@@ -1,56 +1,93 @@
-import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
+"use client"
+import { useEffect, useState, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouteCalculation, getOpenRouteServiceKey } from '@/services/RouteService';
 
-// Fix for default markers not showing
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
+// Dynamically import react-leaflet components to avoid SSR issues
+const MapContainer = dynamic(
+  () => import('react-leaflet').then((mod) => mod.MapContainer),
+  { ssr: false }
+);
 
-// Modern pickup icon (blue like original)
-const PickupIcon = L.divIcon({
-  html: `<div style="
-    background-color:#3B82F6;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    border: 2px solid white;
-    box-shadow: 0 0 5px rgba(59,130,246,0.7);
-  "></div>`,
-  className: '',
-  iconSize: [24, 24],
-  iconAnchor: [12, 12],
-  popupAnchor: [0, -12],
-});
+const TileLayer = dynamic(
+  () => import('react-leaflet').then((mod) => mod.TileLayer),
+  { ssr: false }
+);
 
-// Modern destination icon (blue like original)
-const DestinationIcon = L.divIcon({
-  html: `<div style="
-    background-color:#3B82F6;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    border: 2px solid white;
-    box-shadow: 0 0 5px rgba(59,130,246,0.7);
-  "></div>`,
-  className: '',
-  iconSize: [24, 24],
-  iconAnchor: [12, 12],
-  popupAnchor: [0, -12],
-});
+const Marker = dynamic(
+  () => import('react-leaflet').then((mod) => mod.Marker),
+  { ssr: false }
+);
+
+const Popup = dynamic(
+  () => import('react-leaflet').then((mod) => mod.Popup),
+  { ssr: false }
+);
+
+// Function to create icons after Leaflet is loaded
+const createIcons = (L) => {
+  // Fix for default markers not showing
+  delete L.Icon.Default.prototype._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  });
+
+  // Modern pickup icon (blue like original)
+  const PickupIcon = L.divIcon({
+    html: `<div style="
+      background-color:#3B82F6;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 2px solid white;
+      box-shadow: 0 0 5px rgba(59,130,246,0.7);
+    "></div>`,
+    className: '',
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+    popupAnchor: [0, -12],
+  });
+
+  // Modern destination icon (blue like original)
+  const DestinationIcon = L.divIcon({
+    html: `<div style="
+      background-color:#3B82F6;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 2px solid white;
+      box-shadow: 0 0 5px rgba(59,130,246,0.7);
+    "></div>`,
+    className: '',
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+    popupAnchor: [0, -12],
+  });
+
+  return { PickupIcon, DestinationIcon };
+};
 
 // Component to handle road routing display
 function RoadRoute({ pickupCoords, destinationCoords, onRouteCalculated }) {
-  const map = useMap();
   const apiKey = getOpenRouteServiceKey();
   const { calculateRoute, currentRoute, loading, error } = useRouteCalculation(apiKey);
   const [routeLayer, setRouteLayer] = useState(null);
   const [lastRouteKey, setLastRouteKey] = useState('');
+  const [localL, setLocalL] = useState(null);
+  const mapRef = useRef(null);
+
+  // Load Leaflet
+  useEffect(() => {
+    const loadLeaflet = async () => {
+      if (!localL) {
+        const leaflet = await import('leaflet');
+        setLocalL(leaflet.default);
+      }
+    };
+    loadLeaflet();
+  }, [localL]);
 
   // Create a stable route key to prevent unnecessary recalculations
   const routeKey = pickupCoords && destinationCoords 
@@ -68,35 +105,37 @@ function RoadRoute({ pickupCoords, destinationCoords, onRouteCalculated }) {
 
   // Effect for displaying route on map - separate from callback
   useEffect(() => {
+    if (!localL || !mapRef.current) return;
+
     // Clean up previous route layer
     if (routeLayer) {
-      map.removeLayer(routeLayer);
+      mapRef.current.removeLayer(routeLayer);
       setRouteLayer(null);
     }
 
     if (currentRoute && currentRoute.coordinates) {
       // Create new route polyline - simple blue line like original
-      const newRouteLayer = L.polyline(currentRoute.coordinates, {
+      const newRouteLayer = localL.polyline(currentRoute.coordinates, {
         color: '#3B82F6',
         weight: 6,
         opacity: 0.9,
         smoothFactor: 1.0
-      }).addTo(map);
+      }).addTo(mapRef.current);
 
       setRouteLayer(newRouteLayer);
 
       // Fit map to route bounds with padding
-      const bounds = L.latLngBounds(currentRoute.coordinates);
-      map.fitBounds(bounds, { padding: [60, 60] });
+      const bounds = localL.latLngBounds(currentRoute.coordinates);
+      mapRef.current.fitBounds(bounds, { padding: [60, 60] });
     }
 
     // Cleanup function
     return () => {
-      if (routeLayer) {
-        map.removeLayer(routeLayer);
+      if (routeLayer && mapRef.current) {
+        mapRef.current.removeLayer(routeLayer);
       }
     };
-  }, [currentRoute, map]);
+  }, [currentRoute, localL]);
 
   // Separate effect for callback - using useRef to prevent infinite loops
   useEffect(() => {
@@ -129,22 +168,54 @@ function RoadRoute({ pickupCoords, destinationCoords, onRouteCalculated }) {
     }
   }, [currentRoute, error, loading]); // Removed onRouteCalculated from deps to prevent infinite loop
 
-  return null;
+  // Function to get map reference
+  const getMapRef = (map) => {
+    if (map && !mapRef.current) {
+      mapRef.current = map;
+    }
+  };
+
+  return (
+    <MapRefHandler onMapReady={getMapRef} />
+  );
 }
 
 // Component to handle map centering when only pickup is provided
 function MapCenterController({ pickupCoords, destinationCoords }) {
-  const map = useMap();
+  const mapRef = useRef(null);
 
   useEffect(() => {
-    if (pickupCoords && !destinationCoords) {
+    if (mapRef.current && pickupCoords && !destinationCoords) {
       // Only pickup - center on pickup location
-      map.setView([pickupCoords.lat, pickupCoords.lng], 13);
-    } else if (pickupCoords && destinationCoords) {
+      mapRef.current.setView([pickupCoords.lat, pickupCoords.lng], 13);
+    } else if (mapRef.current && pickupCoords && destinationCoords) {
       // Both coordinates - let RoadRoute component handle the bounds
       return;
     }
-  }, [map, pickupCoords, destinationCoords]);
+  }, [pickupCoords, destinationCoords]);
+
+  // Function to get map reference
+  const getMapRef = (map) => {
+    if (map && !mapRef.current) {
+      mapRef.current = map;
+    }
+  };
+
+  return (
+    <MapRefHandler onMapReady={getMapRef} />
+  );
+}
+
+// Simple component to get map reference
+function MapRefHandler({ onMapReady }) {
+  const { useMap } = require('react-leaflet');
+  const map = useMap();
+
+  useEffect(() => {
+    if (map) {
+      onMapReady(map);
+    }
+  }, [map, onMapReady]);
 
   return null;
 }
@@ -154,6 +225,38 @@ export default function MapComponent({
   destinationCoords, 
   onRouteCalculated 
 }) {
+  const [isClient, setIsClient] = useState(false);
+  const [localL, setLocalL] = useState(null);
+  const [icons, setIcons] = useState(null);
+
+  // Load Leaflet and CSS on client side
+  useEffect(() => {
+    setIsClient(true);
+    
+    const loadLeaflet = async () => {
+      // Import Leaflet CSS
+      await import('leaflet/dist/leaflet.css');
+      // Import Leaflet
+      const leaflet = await import('leaflet');
+      setLocalL(leaflet.default);
+      // Create icons
+      setIcons(createIcons(leaflet.default));
+    };
+
+    loadLeaflet();
+  }, []);
+
+  if (!isClient || !localL || !icons) {
+    return (
+      <div className="flex items-center justify-center h-full bg-gray-100 rounded-2xl">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement de la carte...</p>
+        </div>
+      </div>
+    );
+  }
+
   const center = pickupCoords 
     ? [pickupCoords.lat, pickupCoords.lng]
     : [46.6034, 1.8883]; // Geographic center of France as default
@@ -161,6 +264,7 @@ export default function MapComponent({
   return (
     <div className="relative w-full h-full">
       <MapContainer
+        key={`map-${pickupCoords?.lat}-${pickupCoords?.lng}-${destinationCoords?.lat}-${destinationCoords?.lng}`}
         center={center}
         zoom={6}
         style={{ 
@@ -183,12 +287,12 @@ export default function MapComponent({
 
         {/* Pickup marker - no popup for clean look */}
         {pickupCoords && (
-          <Marker position={[pickupCoords.lat, pickupCoords.lng]} icon={PickupIcon} />
+          <Marker position={[pickupCoords.lat, pickupCoords.lng]} icon={icons.PickupIcon} />
         )}
 
         {/* Destination marker - no popup for clean look */}
         {destinationCoords && (
-          <Marker position={[destinationCoords.lat, destinationCoords.lng]} icon={DestinationIcon} />
+          <Marker position={[destinationCoords.lat, destinationCoords.lng]} icon={icons.DestinationIcon} />
         )}
 
         {/* Road route calculation and display */}
