@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 
 // Dynamic import to avoid SSR issues with Leaflet
-const MapComponent = dynamic(() => import('./MapComponent'), {
+const MapComponent = dynamic(() => import('@/components/MapComponent'), {
   ssr: false,
   loading: () => (
     <div className="flex items-center justify-center h-full bg-gray-100 rounded-2xl">
@@ -61,9 +61,9 @@ export default function MapPage() {
     setRouteInfo(null); // Reset route info when changing routes
   };
 
-  const handleRouteCalculated = (info) => {
+  const handleRouteCalculated = useCallback((info) => {
     setRouteInfo(info);
-  };
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">
