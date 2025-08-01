@@ -8,6 +8,26 @@ export class RouteService {
       
       // Backup: OSRM (completely free, no API key needed)
       this.osrmUrl = 'https://router.project-osrm.org/route/v1/driving';
+      
+      // Rate limiting - 1 request per second
+      this.lastRequestTime = 0;
+      this.minRequestInterval = 1000; // 1 second in milliseconds
+    }
+  
+    /**
+     * Rate limiter - ensures minimum 1 second between requests
+     */
+    async waitForRateLimit() {
+      const now = Date.now();
+      const timeSinceLastRequest = now - this.lastRequestTime;
+      
+      if (timeSinceLastRequest < this.minRequestInterval) {
+        const waitTime = this.minRequestInterval - timeSinceLastRequest;
+        console.log(`Rate limiting: waiting ${waitTime}ms before next request`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
+      
+      this.lastRequestTime = Date.now();
     }
   
     /**
@@ -15,6 +35,8 @@ export class RouteService {
      * Includes traffic conditions and construction info
      */
     async calculateRouteORS(startCoords, endCoords) {
+      await this.waitForRateLimit(); // Rate limiting
+      
       try {
         const params = new URLSearchParams({
           start: `${startCoords.lng},${startCoords.lat}`,
@@ -67,6 +89,8 @@ export class RouteService {
      * Calculate route using OSRM (fallback, completely free)
      */
     async calculateRouteOSRM(startCoords, endCoords) {
+      await this.waitForRateLimit(); // Rate limiting
+      
       try {
         const url = `${this.osrmUrl}/${startCoords.lng},${startCoords.lat};${endCoords.lng},${endCoords.lat}?overview=full&geometries=geojson&steps=true`;
         
@@ -178,6 +202,7 @@ export class RouteService {
     const [currentRoute, setCurrentRoute] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [isDebouncing, setIsDebouncing] = useState(false);
   
     const calculateRoute = useCallback(async (startCoords, endCoords) => {
       if (!startCoords || !endCoords) {
@@ -185,6 +210,13 @@ export class RouteService {
         return;
       }
   
+      // Prevent rapid successive calls
+      if (isDebouncing) {
+        console.log('Route calculation already in progress, skipping...');
+        return;
+      }
+  
+      setIsDebouncing(true);
       setLoading(true);
       setError(null);
       
@@ -198,8 +230,10 @@ export class RouteService {
         console.error('Route calculation failed:', err);
       } finally {
         setLoading(false);
+        // Keep debouncing for a short time to prevent immediate re-requests
+        setTimeout(() => setIsDebouncing(false), 500);
       }
-    }, [routeService]);
+    }, [routeService, isDebouncing]);
   
     const clearRoute = useCallback(() => {
       setCurrentRoute(null);
