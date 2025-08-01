@@ -87,7 +87,7 @@ export default function MapPage() {
                 Choisir un trajet
               </label>
               <select 
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
                 onChange={(e) => handleRouteChange(parseInt(e.target.value))}
                 value={sampleRoutes.indexOf(selectedRoute)}
               >
