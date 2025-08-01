@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { useRouteCalculation, getOpenRouteServiceKey } from './RouteService';
+import { useRouteCalculation, getOpenRouteServiceKey } from '@/services/RouteService';
 
 // Fix for default markers not showing
 delete L.Icon.Default.prototype._getIconUrl;
@@ -12,121 +12,82 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-// Modern pickup icon (green)
+// Modern pickup icon (blue like original)
 const PickupIcon = L.divIcon({
   html: `<div style="
-    background-color:#10B981;
+    background-color:#3B82F6;
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    border: 3px solid white;
-    box-shadow: 0 0 8px rgba(16,185,129,0.6);
+    border: 2px solid white;
+    box-shadow: 0 0 5px rgba(59,130,246,0.7);
   "></div>`,
   className: '',
-  iconSize: [26, 26],
-  iconAnchor: [13, 13],
-  popupAnchor: [0, -13],
+  iconSize: [24, 24],
+  iconAnchor: [12, 12],
+  popupAnchor: [0, -12],
 });
 
-// Modern destination icon (red)
+// Modern destination icon (blue like original)
 const DestinationIcon = L.divIcon({
   html: `<div style="
-    background-color:#EF4444;
+    background-color:#3B82F6;
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    border: 3px solid white;
-    box-shadow: 0 0 8px rgba(239,68,68,0.6);
+    border: 2px solid white;
+    box-shadow: 0 0 5px rgba(59,130,246,0.7);
   "></div>`,
   className: '',
-  iconSize: [26, 26],
-  iconAnchor: [13, 13],
-  popupAnchor: [0, -13],
+  iconSize: [24, 24],
+  iconAnchor: [12, 12],
+  popupAnchor: [0, -12],
 });
 
 // Component to handle road routing display
 function RoadRoute({ pickupCoords, destinationCoords, onRouteCalculated }) {
   const map = useMap();
   const apiKey = getOpenRouteServiceKey();
-  const { calculateRoute, currentRoute, loading, error, formatDuration, formatDistance } = useRouteCalculation(apiKey);
+  const { calculateRoute, currentRoute, loading, error } = useRouteCalculation(apiKey);
   const [routeLayer, setRouteLayer] = useState(null);
+  const [lastRouteKey, setLastRouteKey] = useState('');
 
+  // Create a stable route key to prevent unnecessary recalculations
+  const routeKey = pickupCoords && destinationCoords 
+    ? `${pickupCoords.lat}-${pickupCoords.lng}-${destinationCoords.lat}-${destinationCoords.lng}`
+    : '';
+
+  // Effect for route calculation - only when coordinates actually change
   useEffect(() => {
-    // Clean up previous route
+    if (pickupCoords && destinationCoords && routeKey !== lastRouteKey) {
+      console.log('Calculating new route for:', routeKey);
+      setLastRouteKey(routeKey);
+      calculateRoute(pickupCoords, destinationCoords);
+    }
+  }, [routeKey, lastRouteKey, pickupCoords, destinationCoords, calculateRoute]);
+
+  // Effect for displaying route on map - separate from callback
+  useEffect(() => {
+    // Clean up previous route layer
     if (routeLayer) {
       map.removeLayer(routeLayer);
       setRouteLayer(null);
     }
 
-    // Calculate new route if both coordinates exist
-    if (pickupCoords && destinationCoords) {
-      calculateRoute(pickupCoords, destinationCoords);
-    }
-  }, [pickupCoords, destinationCoords, calculateRoute, map, routeLayer]);
-
-  useEffect(() => {
-    // Clean up previous route layer
-    if (routeLayer) {
-      map.removeLayer(routeLayer);
-    }
-
     if (currentRoute && currentRoute.coordinates) {
-      // Create new route polyline
+      // Create new route polyline - simple blue line like original
       const newRouteLayer = L.polyline(currentRoute.coordinates, {
         color: '#3B82F6',
-        weight: 5,
-        opacity: 0.8,
-        smoothFactor: 1.0,
-        className: 'road-route'
+        weight: 6,
+        opacity: 0.9,
+        smoothFactor: 1.0
       }).addTo(map);
 
-      // Add route popup with info
-      const routeInfo = `
-        <div style="font-family: system-ui; font-size: 14px;">
-          <strong>📍 Itinéraire</strong><br/>
-          <div style="margin: 8px 0;">
-            <span style="color: #059669;">📏 Distance:</span> ${formatDistance(currentRoute.distance)}<br/>
-            <span style="color: #0369A1;">⏱️ Durée:</span> ${formatDuration(currentRoute.duration)}<br/>
-            <span style="color: #7C3AED;">🛣️ Service:</span> ${currentRoute.service}
-          </div>
-        </div>
-      `;
-      
-      newRouteLayer.bindPopup(routeInfo);
       setRouteLayer(newRouteLayer);
 
       // Fit map to route bounds with padding
       const bounds = L.latLngBounds(currentRoute.coordinates);
-      map.fitBounds(bounds, { padding: [40, 40] });
-
-      // Call callback with route info
-      if (onRouteCalculated) {
-        onRouteCalculated({
-          distance: currentRoute.distance,
-          duration: currentRoute.duration,
-          service: currentRoute.service,
-          loading: false,
-          error: null
-        });
-      }
-    } else if (error && onRouteCalculated) {
-      // Handle error
-      onRouteCalculated({
-        distance: null,
-        duration: null,
-        service: null,
-        loading: false,
-        error: error
-      });
-    } else if (loading && onRouteCalculated) {
-      // Handle loading state
-      onRouteCalculated({
-        distance: null,
-        duration: null,
-        service: null,
-        loading: true,
-        error: null
-      });
+      map.fitBounds(bounds, { padding: [60, 60] });
     }
 
     // Cleanup function
@@ -135,7 +96,38 @@ function RoadRoute({ pickupCoords, destinationCoords, onRouteCalculated }) {
         map.removeLayer(routeLayer);
       }
     };
-  }, [currentRoute, error, loading, map, formatDistance, formatDuration, onRouteCalculated]);
+  }, [currentRoute, map]);
+
+  // Separate effect for callback - using useRef to prevent infinite loops
+  useEffect(() => {
+    if (onRouteCalculated) {
+      if (currentRoute) {
+        onRouteCalculated({
+          distance: currentRoute.distance,
+          duration: currentRoute.duration,
+          service: currentRoute.service,
+          loading: false,
+          error: null
+        });
+      } else if (error) {
+        onRouteCalculated({
+          distance: null,
+          duration: null,
+          service: null,
+          loading: false,
+          error: error
+        });
+      } else if (loading) {
+        onRouteCalculated({
+          distance: null,
+          duration: null,
+          service: null,
+          loading: true,
+          error: null
+        });
+      }
+    }
+  }, [currentRoute, error, loading]); // Removed onRouteCalculated from deps to prevent infinite loop
 
   return null;
 }
@@ -182,39 +174,21 @@ export default function MapComponent({
         scrollWheelZoom={true}
         zoomControl={true}
       >
-        {/* French-optimized tile layer */}
+        {/* Original CARTO Light tiles - clean grey look */}
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
           maxZoom={18}
         />
 
-        {/* Pickup marker */}
+        {/* Pickup marker - no popup for clean look */}
         {pickupCoords && (
-          <Marker position={[pickupCoords.lat, pickupCoords.lng]} icon={PickupIcon}>
-            <Popup>
-              <div style={{ fontFamily: 'system-ui', fontSize: '14px' }}>
-                <strong>🚀 Point de départ</strong><br/>
-                <span style={{ color: '#6B7280', fontSize: '12px' }}>
-                  {pickupCoords.lat.toFixed(6)}, {pickupCoords.lng.toFixed(6)}
-                </span>
-              </div>
-            </Popup>
-          </Marker>
+          <Marker position={[pickupCoords.lat, pickupCoords.lng]} icon={PickupIcon} />
         )}
 
-        {/* Destination marker */}
+        {/* Destination marker - no popup for clean look */}
         {destinationCoords && (
-          <Marker position={[destinationCoords.lat, destinationCoords.lng]} icon={DestinationIcon}>
-            <Popup>
-              <div style={{ fontFamily: 'system-ui', fontSize: '14px' }}>
-                <strong>🎯 Destination</strong><br/>
-                <span style={{ color: '#6B7280', fontSize: '12px' }}>
-                  {destinationCoords.lat.toFixed(6)}, {destinationCoords.lng.toFixed(6)}
-                </span>
-              </div>
-            </Popup>
-          </Marker>
+          <Marker position={[destinationCoords.lat, destinationCoords.lng]} icon={DestinationIcon} />
         )}
 
         {/* Road route calculation and display */}
