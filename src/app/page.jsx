@@ -4,7 +4,7 @@ import { useState } from 'react';
 import dynamic from 'next/dynamic';
 
 // Dynamic import to avoid SSR issues with Leaflet
-const MapComponent = dynamic(() => import('@/components/MapComponent'), {
+const MapComponent = dynamic(() => import('./MapComponent'), {
   ssr: false,
   loading: () => (
     <div className="flex items-center justify-center h-full bg-gray-100 rounded-2xl">
@@ -48,14 +48,21 @@ const sampleRoutes = [
 export default function MapPage() {
   const [selectedRoute, setSelectedRoute] = useState(sampleRoutes[0]);
   const [showOnlyPickup, setShowOnlyPickup] = useState(false);
+  const [routeInfo, setRouteInfo] = useState(null);
 
   const handleRouteChange = (routeIndex) => {
     setSelectedRoute(sampleRoutes[routeIndex]);
+    setRouteInfo(null); // Reset route info when changing routes
   };
 
   const getRandomRoute = () => {
     const randomIndex = Math.floor(Math.random() * sampleRoutes.length);
     setSelectedRoute(sampleRoutes[randomIndex]);
+    setRouteInfo(null); // Reset route info when changing routes
+  };
+
+  const handleRouteCalculated = (info) => {
+    setRouteInfo(info);
   };
 
   return (
@@ -142,10 +149,50 @@ export default function MapPage() {
 
         {/* Map Container */}
         <div className="bg-white rounded-2xl shadow-lg p-6">
+          {/* Route Status */}
+          {!showOnlyPickup && (
+            <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+              {routeInfo?.loading && (
+                <div className="flex items-center text-blue-600">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                  <span className="text-sm">Calcul de l'itinéraire en cours...</span>
+                </div>
+              )}
+              {routeInfo?.error && (
+                <div className="flex items-center text-red-600">
+                  <span className="text-sm">❌ Erreur: {routeInfo.error}</span>
+                </div>
+              )}
+              {routeInfo?.distance && (
+                <div className="flex items-center space-x-4 text-sm">
+                  <span className="flex items-center text-green-600">
+                    <span className="mr-1">📏</span>
+                    {routeInfo.distance >= 1000 
+                      ? `${(routeInfo.distance / 1000).toFixed(1)} km`
+                      : `${Math.round(routeInfo.distance)} m`
+                    }
+                  </span>
+                  <span className="flex items-center text-blue-600">
+                    <span className="mr-1">⏱️</span>
+                    {Math.floor(routeInfo.duration / 3600) > 0 
+                      ? `${Math.floor(routeInfo.duration / 3600)}h ${Math.floor((routeInfo.duration % 3600) / 60)}min`
+                      : `${Math.floor(routeInfo.duration / 60)}min`
+                    }
+                  </span>
+                  <span className="flex items-center text-purple-600">
+                    <span className="mr-1">🛣️</span>
+                    {routeInfo.service}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+          
           <div className="h-96 md:h-[500px] lg:h-[600px] w-full">
             <MapComponent
               pickupCoords={selectedRoute.pickupCoords}
               destinationCoords={showOnlyPickup ? null : selectedRoute.destinationCoords}
+              onRouteCalculated={handleRouteCalculated}
             />
           </div>
         </div>
